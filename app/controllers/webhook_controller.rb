@@ -5,7 +5,7 @@ class WebhookController < ApplicationController
     # case webhook.type
     # when 'company'
       company = Company.find(webhook.id)
-      company.data = webhook.body
+      company.data = webhook.body.merge({ from_webhook: webhook.class.to_s, type: webhook.type })
       company.domain = webhook.body[:domain]
       company.unknown = webhook.status == 404
       company.save

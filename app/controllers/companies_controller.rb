@@ -28,6 +28,8 @@ class CompaniesController < ApplicationController
 
     respond_to do |format|
       if @company.save
+        send_company_to_clearbit
+
         format.html { redirect_to @company, notice: 'Company was successfully created.' }
         format.json { render :show, status: :created, location: @company }
       else
@@ -65,6 +67,26 @@ class CompaniesController < ApplicationController
     # Use callbacks to share common setup or constraints between actions.
     def set_company
       @company = Company.find(params[:id])
+    end
+
+    def send_company_to_clearbit
+      domain_response = Clearbit::NameDomain.find(name: @company.name)
+
+      return unless domain_response
+
+      domain = domain_response['domain']
+      @company.domain = domain
+      enrichment_response =
+        Clearbit::Enrichment::Company.
+          find(domain: domain, webhook_id: @company.id, webhook_url: ENV['WEBHOOK_URL'])
+
+      return unless enrichment_response
+
+      if enrichment_response.pending? # status = 202
+        # it will be send to webhook
+      else # status = 200
+        @company.update data: enrichment_response.body
+      end
     end
 
     # Never trust parameters from the scary internet, only allow the white list through.
